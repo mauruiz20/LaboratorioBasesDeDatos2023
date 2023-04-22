@@ -37,6 +37,7 @@ CREATE TABLE clientes(
 CREATE TABLE entradas(
     IdEntrada        INT UNSIGNED  AUTO_INCREMENT,
     FechaEntrada     DATETIME    NOT NULL,
+    Observaciones    TEXT,
     EstadoEntrada    CHAR(1)     DEFAULT 'E' NOT NULL,
     PRIMARY KEY (IdEntrada)
 )ENGINE=INNODB
@@ -73,7 +74,8 @@ CREATE TABLE lineasServicio(
     Cantidad          SMALLINT          NOT NULL,
     Detalle           TEXT,
     PRIMARY KEY (NroLinea, IdServicio, IdUsuario)
-) ENGINE=INNODB;
+)ENGINE=INNODB
+;
 
 
 
@@ -177,10 +179,10 @@ CREATE TABLE vendedores(
 
 
 -- 
--- INDEX: Ref14 
+-- INDEX: IX_FechaEntrada 
 --
 
-CREATE INDEX Ref14 ON clientes(IdUsuario)
+CREATE INDEX IX_FechaEntrada ON entradas(FechaEntrada)
 ;
 -- 
 -- INDEX: UI_IdLineaEntrada 
@@ -189,34 +191,10 @@ CREATE INDEX Ref14 ON clientes(IdUsuario)
 CREATE UNIQUE INDEX UI_IdLineaEntrada ON lineasEntrada(IdLineaEntrada)
 ;
 -- 
--- INDEX: Ref108 
---
-
-CREATE INDEX Ref108 ON lineasEntrada(IdProducto)
-;
--- 
--- INDEX: Ref129 
---
-
-CREATE INDEX Ref129 ON lineasEntrada(IdEntrada)
-;
--- 
 -- INDEX: UI_NroLinea 
 --
 
 CREATE UNIQUE INDEX UI_NroLinea ON lineasServicio(NroLinea)
-;
--- 
--- INDEX: Ref1517 
---
-
-CREATE INDEX Ref1517 ON lineasServicio(IdUsuario, IdServicio)
-;
--- 
--- INDEX: Ref1019 
---
-
-CREATE INDEX Ref1019 ON lineasServicio(IdProducto)
 ;
 -- 
 -- INDEX: UI_IdServicio 
@@ -229,36 +207,6 @@ CREATE UNIQUE INDEX UI_IdServicio ON servicios(IdServicio)
 --
 
 CREATE INDEX IX_FechaAlta ON servicios(FechaAlta)
-;
--- 
--- INDEX: Ref312 
---
-
-CREATE INDEX Ref312 ON servicios(IdTecnico)
-;
--- 
--- INDEX: Ref214 
---
-
-CREATE INDEX Ref214 ON servicios(IdVendedor)
-;
--- 
--- INDEX: Ref415 
---
-
-CREATE INDEX Ref415 ON servicios(IdUsuario)
-;
--- 
--- INDEX: Ref516 
---
-
-CREATE INDEX Ref516 ON servicios(IdTipoServicio)
-;
--- 
--- INDEX: Ref13 
---
-
-CREATE INDEX Ref13 ON tecnicos(IdUsuario)
 ;
 -- 
 -- INDEX: UI_TipoServicio 
@@ -283,12 +231,6 @@ CREATE INDEX IX_ApellidosNombres ON usuarios(Apellidos, Nombres)
 --
 
 CREATE INDEX IX_Nombres ON usuarios(Nombres)
-;
--- 
--- INDEX: Ref12 
---
-
-CREATE INDEX Ref12 ON vendedores(IdUsuario)
 ;
 -- 
 -- TABLE: clientes 
@@ -373,6 +315,9 @@ ALTER TABLE vendedores ADD CONSTRAINT Refusuarios21
     FOREIGN KEY (IdUsuario)
     REFERENCES usuarios(IdUsuario)
 ;
+
+
+
 
 INSERT INTO usuarios (Apellidos,Nombres,CUIL,DNI,Email,Telefono,Domicilio,Cuenta,Contrasenia)
 VALUES
@@ -502,28 +447,28 @@ VALUES
     ('Patch Panel','Leviton','A'),
     ('Patch Panel','Belden','B');
   
-INSERT INTO entradas (FechaEntrada,EstadoEntrada)
+INSERT INTO entradas (FechaEntrada,Observaciones,EstadoEntrada)
 VALUES
-    ('2023-01-01','F'),
-    ('2023-02-02','F'),
-    ('2023-05-05','F'),
-    ('2023-01-20','E'),
-    ('2023-03-15','E'),
-    ('2023-04-10','E'),
-    ('2023-06-06','F'),
-    ('2023-07-12','E'),
-    ('2023-08-21','F'),
-    ('2023-09-09','E'),
-    ('2023-10-05','F'),
-    ('2023-11-11','E'),
-    ('2023-12-25','F'),
-    ('2024-01-01','F'),
-    ('2024-02-14','E'),
-    ('2024-03-17','E'),
-    ('2024-04-22','F'),
-    ('2024-05-01','E'),
-    ('2024-06-10','F'),
-    ('2024-07-04','E');
+    ('2023-01-01',null,'F'),
+    ('2023-02-02','Observaciones2','F'),
+    ('2023-05-05',null,'F'),
+    ('2023-01-20',null,'E'),
+    ('2023-03-15','-','E'),
+    ('2023-04-10','Ninguna','E'),
+    ('2023-06-06','Ninguna','F'),
+    ('2023-07-12',null,'E'),
+    ('2023-08-21','Observaciones9','F'),
+    ('2023-09-09',null,'E'),
+    ('2023-10-05',null,'F'),
+    ('2023-11-11','Ninguna','E'),
+    ('2023-12-25',null,'F'),
+    ('2024-01-01',null,'F'),
+    ('2024-02-14',null,'E'),
+    ('2024-03-17','-','E'),
+    ('2024-04-22','Ninguna','F'),
+    ('2024-05-01',null,'E'),
+    ('2024-06-10',null,'F'),
+    ('2024-07-04','Observaciones20','E');
     
 INSERT INTO lineasEntrada (IdEntrada,IdProducto,CostoUnitario,Cantidad)
 VALUES
@@ -575,10 +520,10 @@ INSERT INTO lineasServicio (IdServicio,IdUsuario,IdProducto,PrecioUnitario,Canti
 VALUES
 	(1,1,1,20000,1,null),
 	(1,1,2,30000,2,null),
-    (1,1,3,30000,1,null),
-    (1,1,4,35000,1,null),
-    (1,1,7,20000,2,null),
-    (2,1,1,20000,1,null),
+	(1,1,3,30000,1,null),
+	(1,1,4,35000,1,null),
+	(1,1,7,20000,2,null),
+	(2,1,1,20000,1,null),
 	(2,1,2,30000,1,null),
 	(2,1,3,35000,10,null),
 	(2,1,4,50000,7,null),
@@ -586,10 +531,10 @@ VALUES
 	(4,3,4,35000,5,null),
 	(4,3,6,100000,1,null),
 	(5,4,1,20000,10,null),
-    (5,4,2,30000,1,null),
-    (5,4,3,30000,20,null),
-    (5,4,4,35000,5,null),
-    (5,4,7,20000,2,null),
-    (6,5,1,20000,1,null),
-    (6,5,7,20000,2,null),
-    (7,6,1,20000,12,null);
+	(5,4,2,30000,1,null),
+	(5,4,3,30000,20,null),
+	(5,4,4,35000,5,null),
+	(5,4,7,20000,2,null),
+	(6,5,1,20000,1,null),
+	(6,5,7,20000,2,null),
+	(7,6,1,20000,12,null);
