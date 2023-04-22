@@ -136,7 +136,7 @@ CREATE TABLE tiposServicio(
     TipoServicio       VARCHAR(100)    NOT NULL,
     FechaAlta          DATETIME        DEFAULT NOW() NOT NULL,
     Contenido          TEXT            NOT NULL,
-    EstadoTServicio    CHAR(1)         NOT NULL,
+    EstadoTServicio    CHAR(1)         DEFAULT 'A' NOT NULL,
     PRIMARY KEY (IdTipoServicio)
 )ENGINE=INNODB
 ;
