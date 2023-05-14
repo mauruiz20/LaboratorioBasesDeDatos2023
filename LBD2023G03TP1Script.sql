@@ -9,8 +9,8 @@
 -- GitHub Repositorio: LBD2023G03
 -- GitHub Usuario: FaustoJuarez, mauruiz20
 
-DROP DATABASE IF EXISTS LBD2023G03;
-CREATE DATABASE IF NOT EXISTS LBD2023G03;
+DROP SCHEMA IF EXISTS LBD2023G03;
+CREATE SCHEMA IF NOT EXISTS LBD2023G03;
 
 USE LBD2023G03;
 
@@ -23,7 +23,8 @@ CREATE TABLE clientes(
     Localidad        VARCHAR(60)    NOT NULL,
     Comuna           VARCHAR(60)    NOT NULL,
     Observaciones    TEXT,
-    EstadoCliente    CHAR(1)        DEFAULT 'P' NOT NULL,
+    EstadoCliente    CHAR(1)        DEFAULT 'P' NOT NULL
+                     CHECK (EstadoCliente = 'P' OR EstadoCliente = 'A' OR EstadoCliente = 'B'),
     PRIMARY KEY (IdUsuario)
 )ENGINE=INNODB
 ;
@@ -38,7 +39,8 @@ CREATE TABLE entradas(
     IdEntrada        INT UNSIGNED  AUTO_INCREMENT,
     FechaEntrada     DATETIME    NOT NULL,
     Observaciones    TEXT,
-    EstadoEntrada    CHAR(1)     DEFAULT 'E' NOT NULL,
+    EstadoEntrada    CHAR(1)     DEFAULT 'E' NOT NULL
+                     CHECK (EstadoEntrada = 'E' OR EstadoEntrada = 'F'),
     PRIMARY KEY (IdEntrada)
 )ENGINE=INNODB
 ;
@@ -53,7 +55,8 @@ CREATE TABLE lineasEntrada(
     IdLineaEntrada    INT UNSIGNED      AUTO_INCREMENT,
     IdEntrada         INT UNSIGNED      NOT NULL,
     IdProducto        INT UNSIGNED      NOT NULL,
-    CostoUnitario     DECIMAL(12, 2)    NOT NULL CHECK (CostoUnitario >= 0),
+    CostoUnitario     DECIMAL(12, 2)    NOT NULL
+                      CHECK (CostoUnitario >= 0),
     Cantidad          SMALLINT          NOT NULL,
     PRIMARY KEY (IdLineaEntrada, IdEntrada, IdProducto)
 )ENGINE=INNODB
@@ -70,7 +73,8 @@ CREATE TABLE lineasServicio(
     IdServicio        INT UNSIGNED      NOT NULL,
     IdUsuario         INT UNSIGNED      NOT NULL,
     IdProducto        INT UNSIGNED,
-    PrecioUnitario    DECIMAL(12, 2)    NOT NULL CHECK (PrecioUnitario >= 0),
+    PrecioUnitario    DECIMAL(12, 2)    NOT NULL
+                      CHECK (PrecioUnitario >= 0),
     Cantidad          SMALLINT          NOT NULL,
     Detalle           TEXT,
     PRIMARY KEY (NroLinea, IdServicio, IdUsuario)
@@ -87,7 +91,8 @@ CREATE TABLE productos(
     IdProducto        INT UNSIGNED   AUTO_INCREMENT,
     Producto          VARCHAR(60)    NOT NULL,
     Marca             VARCHAR(60),
-    EstadoProducto    CHAR(1)        DEFAULT 'A' NOT NULL,
+    EstadoProducto    CHAR(1)        DEFAULT 'A' NOT NULL
+                      CHECK (EstadoProducto = 'A' OR EstadoProducto = 'B'),
     PRIMARY KEY (IdProducto)
 )ENGINE=INNODB
 ;
@@ -122,7 +127,8 @@ CREATE TABLE servicios(
 CREATE TABLE tecnicos(
     IdUsuario         INT UNSIGNED    NOT NULL,
     HorarioTrabajo    VARCHAR(100)    NOT NULL,
-    EstadoTecnico     CHAR(1)         DEFAULT 'A' NOT NULL,
+    EstadoTecnico     CHAR(1)         DEFAULT 'A' NOT NULL
+                      CHECK (EstadoTecnico = 'A' OR EstadoTecnico = 'B'),
     PRIMARY KEY (IdUsuario)
 )ENGINE=INNODB
 ;
@@ -138,7 +144,8 @@ CREATE TABLE tiposServicio(
     TipoServicio       VARCHAR(100)    NOT NULL,
     FechaAlta          DATETIME        DEFAULT NOW() NOT NULL,
     Contenido          TEXT            NOT NULL,
-    EstadoTServicio    CHAR(1)         DEFAULT 'A' NOT NULL,
+    EstadoTServicio    CHAR(1)         DEFAULT 'A' NOT NULL
+                       CHECK (EstadoTServicio = 'A' OR EstadoTServicio = 'B'),
     PRIMARY KEY (IdTipoServicio)
 )ENGINE=INNODB
 ;
@@ -233,10 +240,16 @@ CREATE INDEX IX_ApellidosNombres ON usuarios(Apellidos, Nombres)
 CREATE INDEX IX_Nombres ON usuarios(Nombres)
 ;
 -- 
+-- INDEX: UI_CUIL 
+--
+
+CREATE UNIQUE INDEX UI_CUIL ON usuarios(CUIL)
+;
+-- 
 -- TABLE: clientes 
 --
 
-ALTER TABLE clientes ADD CONSTRAINT Refusuarios41 
+ALTER TABLE clientes ADD CONSTRAINT Refusuarios4 
     FOREIGN KEY (IdUsuario)
     REFERENCES usuarios(IdUsuario)
 ;
@@ -246,12 +259,12 @@ ALTER TABLE clientes ADD CONSTRAINT Refusuarios41
 -- TABLE: lineasEntrada 
 --
 
-ALTER TABLE lineasEntrada ADD CONSTRAINT Refproductos81 
+ALTER TABLE lineasEntrada ADD CONSTRAINT Refproductos8 
     FOREIGN KEY (IdProducto)
     REFERENCES productos(IdProducto)
 ;
 
-ALTER TABLE lineasEntrada ADD CONSTRAINT Refentradas91 
+ALTER TABLE lineasEntrada ADD CONSTRAINT Refentradas9 
     FOREIGN KEY (IdEntrada)
     REFERENCES entradas(IdEntrada)
 ;
@@ -261,12 +274,12 @@ ALTER TABLE lineasEntrada ADD CONSTRAINT Refentradas91
 -- TABLE: lineasServicio 
 --
 
-ALTER TABLE lineasServicio ADD CONSTRAINT Refservicios171 
+ALTER TABLE lineasServicio ADD CONSTRAINT Refservicios17 
     FOREIGN KEY (IdServicio, IdUsuario)
     REFERENCES servicios(IdServicio, IdUsuario)
 ;
 
-ALTER TABLE lineasServicio ADD CONSTRAINT Refproductos191 
+ALTER TABLE lineasServicio ADD CONSTRAINT Refproductos19 
     FOREIGN KEY (IdProducto)
     REFERENCES productos(IdProducto)
 ;
@@ -276,22 +289,22 @@ ALTER TABLE lineasServicio ADD CONSTRAINT Refproductos191
 -- TABLE: servicios 
 --
 
-ALTER TABLE servicios ADD CONSTRAINT Reftecnicos121 
+ALTER TABLE servicios ADD CONSTRAINT Reftecnicos12 
     FOREIGN KEY (IdTecnico)
     REFERENCES tecnicos(IdUsuario)
 ;
 
-ALTER TABLE servicios ADD CONSTRAINT Refvendedores141 
+ALTER TABLE servicios ADD CONSTRAINT Refvendedores14 
     FOREIGN KEY (IdVendedor)
     REFERENCES vendedores(IdUsuario)
 ;
 
-ALTER TABLE servicios ADD CONSTRAINT Refclientes151 
+ALTER TABLE servicios ADD CONSTRAINT Refclientes15 
     FOREIGN KEY (IdUsuario)
     REFERENCES clientes(IdUsuario)
 ;
 
-ALTER TABLE servicios ADD CONSTRAINT ReftiposServicio161 
+ALTER TABLE servicios ADD CONSTRAINT ReftiposServicio16 
     FOREIGN KEY (IdTipoServicio)
     REFERENCES tiposServicio(IdTipoServicio)
 ;
@@ -301,7 +314,7 @@ ALTER TABLE servicios ADD CONSTRAINT ReftiposServicio161
 -- TABLE: tecnicos 
 --
 
-ALTER TABLE tecnicos ADD CONSTRAINT Refusuarios31 
+ALTER TABLE tecnicos ADD CONSTRAINT Refusuarios3 
     FOREIGN KEY (IdUsuario)
     REFERENCES usuarios(IdUsuario)
 ;
@@ -311,12 +324,10 @@ ALTER TABLE tecnicos ADD CONSTRAINT Refusuarios31
 -- TABLE: vendedores 
 --
 
-ALTER TABLE vendedores ADD CONSTRAINT Refusuarios21 
+ALTER TABLE vendedores ADD CONSTRAINT Refusuarios2 
     FOREIGN KEY (IdUsuario)
     REFERENCES usuarios(IdUsuario)
 ;
-
-
 
 
 INSERT INTO usuarios (Apellidos,Nombres,CUIL,DNI,Email,Telefono,Domicilio,Cuenta,Contrasenia)
@@ -497,24 +508,24 @@ INSERT INTO servicios (IdUsuario,IdTecnico,IdVendedor,IdTipoServicio,FechaAlta,F
 VALUES
     (1,26,16,1,'2023-07-27 15:02:15',null,null,null,'risus odio, auctor vitae, aliquet nec, imperdiet nec, leo.'),
     (1,null,17,2,'2023-10-28 01:36:34','2022-09-02 06:18:19',null,null,'non'),
-    (2,27,18,3,'2023-04-03 13:35:46','2023-12-08 22:38:08','2023-07-08 01:11:26',null,'Sed auctor odio a purus. Duis elementum,'),
-    (3,null,17,1,'2023-11-12 03:27:41','2024-03-10 18:00:03','2023-07-28 06:03:48','2023-06-26 17:30:04','mauris id sapien. Cras dolor dolor,'),
-    (4,26,17,2,'2022-04-28 23:10:13','2022-10-20 10:33:02','2022-08-21 07:30:49','2022-10-21 14:30:10','amet luctus'),
-    (5,30,20,5,'2022-10-17 19:11:16','2023-01-17 06:49:39','2024-02-12 23:08:15','2023-10-07 14:30:19','eu, placerat eget,'),
+    (2,27,18,3,'2023-04-03 13:35:46',null,'2023-07-08 01:11:26',null,'Sed auctor odio a purus. Duis elementum,'),
+    (3,null,17,1,'2023-11-12 03:27:41',null,'2023-07-28 06:03:48','2023-06-26 17:30:04','mauris id sapien. Cras dolor dolor,'),
+    (4,26,17,2,'2022-04-28 23:10:13',null,'2022-08-21 07:30:49','2022-10-21 14:30:10','amet luctus'),
+    (5,30,20,5,'2022-10-17 19:11:16',null,'2024-02-12 23:08:15','2023-10-07 14:30:19','eu, placerat eget,'),
     (6,29,21,6,'2023-09-30 13:40:48',null,null,null,'et, rutrum eu, ultrices sit'),
     (1,null,16,1,'2023-07-27 15:02:15',null,null,null,'risus odio, auctor vitae, aliquet nec, imperdiet nec, leo.'),
     (1,null,17,2,'2023-10-28 01:36:34','2022-09-02 06:18:19',null,null,'non'),
-    (2,27,18,3,'2023-04-03 13:35:46','2023-12-08 22:38:08','2023-07-08 01:11:26',null,'Sed auctor odio a purus. Duis elementum,'),
-    (3,null,17,1,'2023-11-12 03:27:41','2024-03-10 18:00:03','2023-07-28 06:03:48','2023-06-26 17:30:04','mauris id sapien. Cras dolor dolor,'),
-    (4,26,17,2,'2022-04-28 23:10:13','2022-10-20 10:33:02','2022-08-21 07:30:49','2022-10-21 14:30:10','amet luctus'),
-    (4,30,16,4,'2022-12-28 15:42:58','2022-10-20 12:30:00','2023-08-20 12:40:12','2023-06-22 21:14:16','neque tellus, imperdiet non, vestibulum nec, euismod'),
-    (5,30,16,5,'2022-10-17 19:11:16','2023-01-17 06:49:39','2024-02-12 23:08:15','2023-10-07 14:30:19','eu, placerat eget,'),
+    (2,27,18,3,'2023-04-03 13:35:46',null,'2023-07-08 01:11:26',null,'Sed auctor odio a purus. Duis elementum,'),
+    (3,null,17,1,'2023-11-12 03:27:41',null,'2023-07-28 06:03:48','2023-06-26 17:30:04','mauris id sapien. Cras dolor dolor,'),
+    (4,26,17,2,'2022-04-28 23:10:13',null,'2022-08-21 07:30:49','2022-10-21 14:30:10','amet luctus'),
+    (4,30,16,4,'2022-12-28 15:42:58',null,'2023-08-20 12:40:12','2023-06-22 21:14:16','neque tellus, imperdiet non, vestibulum nec, euismod'),
+    (5,30,16,5,'2022-10-17 19:11:16',null,'2024-02-12 23:08:15','2023-10-07 14:30:19','eu, placerat eget,'),
     (5,null,19,6,'2023-04-28 13:47:16',null,null,null, 'nulla facilisi. Cras non velit nec'),
     (6,null,21,6,'2023-09-30 13:40:48',null,null,null,'et, rutrum eu, ultrices sit'),
     (7,28,24,7,'2023-03-15 21:57:16',null,null,null,'ut nisi. Aenean eget metus. In'),
     (8,null,25,8,'2023-06-10 08:08:53','2023-09-11 17:26:22',null,null,'et, rutrum non, hendrerit id,'),
     (9,27,16,9,'2023-08-17 14:09:32','2023-12-02 00:08:01',null,null,'at, velit. Pellentesque ultricies dignissim lacus.'),
-    (13,null,24,5,'2023-11-25 07:45:39','2024-03-15 05:45:10','2023-07-30 04:02:28',null,'eros. Nam consequat dolor vitae dolor.');
+    (13,null,24,5,'2023-11-25 07:45:39',null,'2023-07-30 04:02:28',null,'eros. Nam consequat dolor vitae dolor.');
 
 INSERT INTO lineasServicio (IdServicio,IdUsuario,IdProducto,PrecioUnitario,Cantidad,Detalle)
 VALUES
