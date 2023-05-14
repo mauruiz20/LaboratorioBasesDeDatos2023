@@ -21,39 +21,42 @@ WHERE		IdUsuario = 1 AND
 
 -- No se entiende el enunciado
 
--- Opcion 1
-SELECT		*
-FROM		servicios
-ORDER BY	IdTipoServicio
-;
-
--- Opcion 2
 SELECT		TipoServicio, s.*
 FROM		servicios s
 JOIN		tiposservicio t ON s.IdTipoServicio = t.IdTipoServicio
+WHERE		FechaBaja IS NULL AND FechaFinalizacion IS NOT NULL
 ORDER BY	TipoServicio
 ;
 
 /* 3. Mostrar la diferencia entre el total de productos de entradas y el total de productos asignados a servicios para un rango de fechas en particular. */
 
--- ¿Que fecha?
-
-SELECT * FROM lineasentrada;
-SELECT * FROM lineasservicio;
+SELECT * FROM lineasEntrada;
+SELECT * FROM lineasServicio;
 
 -- Opcion 1
 SET @TotalEntrada = (SELECT 		SUM(Cantidad) Cantidad
-					 FROM			lineasentrada);
+					 FROM			lineasEntrada);
                      
 SET @TotalServicio = (SELECT		SUM(Cantidad) Cantidad
-					  FROM			lineasservicio);
+					  FROM			lineasServicio);
                       
 SELECT @TotalEntrada - @TotalServicio AS Total;
 
+-- ¿Que fecha?
+-- Entradas -> FechaEntrada
+-- Servicios -> FechaFinalizacion
+
 -- Opcion 2
 SELECT 
-	(SELECT SUM(Cantidad) Cantidad FROM lineasentrada) - 
-    (SELECT SUM(Cantidad) Cantidad FROM lineasservicio WHERE IdProducto IS NOT NULL) AS Total
+	(SELECT SUM(Cantidad) Cantidad 
+		FROM lineasEntrada l 
+		JOIN entradas e ON l.IdEntrada = e.IdEntrada 
+        WHERE EstadoEntrada = 'F'
+	) - 
+    (SELECT SUM(Cantidad) Cantidad 
+		FROM lineasServicio 
+		WHERE IdProducto IS NOT NULL
+	) AS Total
 ;
 
 /* 4. Dado un rango de fechas, mostrar mes a mes el total de entradas y el total de servicios. 
@@ -61,47 +64,126 @@ SELECT
  		total de servicios sin productos asignados, total de servicios. */
         
 -- ¿Como calculo el mes a mes de un producto asignado y servicios?
+-- Productos asignados en que fecha?
 
 SELECT		MONTH(FechaEntrada) Mes, SUM(Cantidad) 'Total de productos en entradas'
 FROM		entradas
-JOIN		lineasentrada USING (IdEntrada)
+JOIN		lineasEntrada USING (IdEntrada)
 GROUP BY	Mes
 ORDER BY 	Mes
+;
+-- Fecha de alta o fecha de finalizacion
+SELECT      MONTH(FechaFinalizacion) Mes, SUM(Cantidad) 'Total de productos asignados'
+FROM        servicios
+JOIN        lineasServicio USING (IdServicio)
+GROUP BY    Mes
+HAVING      Mes IS NOT NULL
+ORDER BY    Mes
 ;
 
-SELECT		MONTH(FechaAlta) Mes, COUNT(IdServicio) 'Total de servicios'
-FROM		servicios
-GROUP BY	Mes
-ORDER BY 	Mes
+SELECT      MONTH(FechaFinalizacion) Mes, COUNT(IdServicio) 'Total de servicios sin productos asignados'
+FROM        servicios
+LEFT JOIN   lineasServicio USING (IdServicio)
+WHERE       NroLinea IS NULL
+GROUP BY    Mes
+HAVING      Mes IS NOT NULL
+ORDER BY    Mes
 ;
+
+SELECT      MONTH(FechaAlta) Mes, COUNT(IdServicio) 'Total de servicios'
+FROM        servicios
+GROUP BY    Mes
+ORDER BY    Mes
+;
+
+-- consulta grande
+SELECT
+t1.Mes,
+COALESCE(t1.`Total de productos en entradas`,0) 'Total de productos en entradas',
+COALESCE(t2.`Total de productos asignados`,0) 'Total de productos asignados',
+COALESCE(t3.`Total de servicios sin productos asignados`,0) 'Total de servicios sin productos asignados',
+COALESCE(t4.`Total de servicios`,0) 'Total de servicios' 
+FROM
+(SELECT
+MONTH(FechaEntrada) Mes,
+SUM(Cantidad) 'Total de productos en entradas'
+FROM entradas
+JOIN lineasEntrada USING (IdEntrada)
+GROUP BY Mes) t1
+
+LEFT JOIN
+(SELECT
+MONTH(FechaFinalizacion) Mes,
+SUM(Cantidad) 'Total de productos asignados'
+FROM servicios
+JOIN lineasServicio USING (IdServicio)
+GROUP BY Mes
+HAVING Mes IS NOT NULL) t2 ON t1.Mes = t2.Mes
+
+LEFT JOIN
+(SELECT
+MONTH(FechaFinalizacion) Mes,
+COUNT(IdServicio) 'Total de servicios sin productos asignados'
+FROM servicios
+LEFT JOIN lineasServicio USING (IdServicio)
+WHERE NroLinea IS NULL
+GROUP BY Mes
+HAVING Mes IS NOT NULL) t3 ON t1.Mes = t3.Mes
+
+LEFT JOIN
+(SELECT
+MONTH(FechaAlta) Mes,
+COUNT(IdServicio) 'Total de servicios'
+FROM servicios
+GROUP BY Mes) t4 ON t1.Mes = t4.Mes
+
+ORDER BY t1.Mes;
 
 /* 5. Hacer un ranking con los técnicos que más servicios realizan (por cantidad) en un rango de fechas. */
 
 -- ¿Que fecha?
-
 SELECT * FROM tecnicos t JOIN servicios s ON t.IdUsuario = s.IdTecnico;
 
 SELECT			t.IdUsuario, Apellidos, Nombres, COUNT(IdServicio) 'Cantidad de servicios'
 FROM			tecnicos t
 JOIN			usuarios u ON t.IdUsuario = u.IdUsuario
 LEFT JOIN		servicios s ON t.IdUsuario = s.IdTecnico
--- WHERE			FechaAlta BETWEEN '2021-04-01' AND '2024-08-31'
+WHERE			(FechaFinalizacion IS NOT NULL OR FechaBaja IS NOT NULL) AND FechaAlta BETWEEN '2021-04-01' AND '2024-08-31'
 GROUP BY		IdUsuario, Apellidos, Nombres
 ORDER BY 		4 DESC
 ;
 
 /* 6. Hacer un ranking con los tipos de servicios más realizados (por importe) en un rango de fechas. */
 
+SELECT			ts.IdTipoServicio, TipoServicio, SUM(Cantidad * PrecioUnitario) 'Importe'
+FROM			tiposServicio ts
+LEFT JOIN		servicios s ON s.IdTipoServicio = ts.IdTipoServicio
+JOIN			lineasServicio ls ON s.IdServicio = ls.IdServicio
+WHERE			FechaFinalizacion IS NOT NULL AND s.FechaAlta BETWEEN '2021-04-01' AND '2024-08-31'
+GROUP BY		IdTipoServicio, TipoServicio
+ORDER BY 		3 DESC
+;
+
 /* 7. Hacer un ranking con los tipos de servicios más realizados (por cantidad) en un rango de fechas. */
 
-SELECT			t.IdTipoServicio, TipoServicio, COUNT(IdServicio) 'Tipos de servicios más realizados'
-FROM			tiposservicio t
+SELECT			t.IdTipoServicio, TipoServicio, COUNT(s.IdServicio) 'Tipos de servicios más realizados'
+FROM			tiposServicio t
 JOIN			servicios s ON t.IdTipoServicio = s.IdTipoServicio
--- WHERE			s.FechaAlta BETWEEN '2022-04-01' AND '2023-08-31'
-GROUP BY		t.IdTipoServicio, TipoServicio
+WHERE			FechaFinalizacion IS NOT NULL AND s.FechaAlta BETWEEN '2021-04-01' AND '2024-08-31'
+GROUP BY		IdTipoServicio, TipoServicio
 ORDER BY		3 DESC;
 
 /*- 8. Crear una vista con la funcionalidad del apartado 2. */
+
+CREATE VIEW v_servicios_agrupados_tipo AS
+	SELECT		TipoServicio, s.*
+	FROM		servicios s
+	JOIN		tiposservicio t ON s.IdTipoServicio = t.IdTipoServicio
+	WHERE		FechaBaja IS NULL AND FechaFinalizacion IS NOT NULL
+	ORDER BY	TipoServicio
+;
+
+SELECT * FROM v_servicios_agrupados_tipo;
 
 /* 9. Crear una copia de la tabla productos, que además tenga una columna del tipo JSON para guardar el detalle de las entradas (lineasEntrada). 
  		Llenar esta tabla con los mismos datos del TP1 y resolver la consulta: Dado un producto listar todas las lineasEntradas del producto. */
@@ -262,18 +344,19 @@ VALUES
 	}
   ]','B');
   
-  SELECT * FROM productos_copia;
-  SELECT * FROM lineasEntrada WHERE IdProducto = 1;
+SELECT * FROM productos_copia;
+SELECT * FROM lineasEntrada WHERE IdProducto = 1;
   
-  SELECT		NroLinea, IdEntrada, CostoUnitario, Cantidad
-  FROM			productos_copia
-  JOIN			JSON_TABLE(Detalle, '$[*]' COLUMNS(
-						NroLinea	  	FOR ORDINALITY,
-						IdEntrada 		int 			PATH '$.IdEntrada',
-                        CostoUnitario 	decimal(12,2) 	PATH '$.CostoUnitario',
-                        Cantidad 		smallint		PATH '$.Cantidad'
-                        )
-				) AS lineasentrada
+-- NroLinea ORDINALITY ?
+SELECT		NroLinea, IdEntrada, CostoUnitario, Cantidad
+FROM		productos_copia
+JOIN		JSON_TABLE(Detalle, '$[*]' COLUMNS(
+					NroLinea	  	FOR ORDINALITY,
+					IdEntrada 		int 			PATH '$.IdEntrada',
+					CostoUnitario 	decimal(12,2) 	PATH '$.CostoUnitario',
+					Cantidad 		smallint		PATH '$.Cantidad'
+					)
+			) AS lineasEntrada
 WHERE			IdProducto = 1
 ;
 
@@ -281,12 +364,13 @@ WHERE			IdProducto = 1
 
 -- Enunciado: Mostrar una lista de los servicios que no están pagados indicando quién es el cliente, su teléfono y cúal es la deuda.
 
+DROP VIEW IF EXISTS v_servicios_impagos;
 CREATE VIEW	v_servicios_impagos AS
 	SELECT		IdServicio, CONCAT(Apellidos, ', ', Nombres) Cliente, Telefono, COALESCE(SUM(Cantidad * PrecioUnitario), 0) Deuda
 	FROM		servicios s
 	JOIN		usuarios u USING (IdUsuario)
-	JOIN		lineasservicio ls USING (IdServicio)
-	WHERE		FechaPago IS NULL
+	JOIN		lineasServicio ls USING (IdServicio)
+	WHERE		FechaBaja IS NULL AND FechaPago IS NULL
 	GROUP BY	IdServicio, s.IdUsuario
 ;
 
