@@ -13,35 +13,36 @@
 /* 1. Dado un cliente, listar todos sus servicios en un rango de fechas. */
 /* --------------------------------------------------------------------- */
 SET @IdUsuario_1 = 1;
-SET @FechaInicio_1 = '2023-05-01';
-SET @FechaFin_1 = '2023-08-31';
+SET @FechaInicio_1 = '2023-05-01T00:00:00';
+SET @FechaFin_1 = '2023-10-20T23:59:59';
 
 SELECT		Titulo, FechaAlta, FechaBaja, FechaFinalizacion, FechaPago, Observaciones, IdServicio, IdUsuario, IdTecnico, IdVendedor, IdTipoServicio
 FROM		servicios
 WHERE		IdUsuario = @IdUsuario_1 AND
 			FechaAlta BETWEEN @FechaInicio_1 AND @FechaFin_1
+ORDER BY	Titulo, FechaAlta, FechaBaja, FechaFinalizacion, FechaPago, Observaciones, IdServicio, IdUsuario, IdTecnico, IdVendedor, IdTipoServicio
 ;
 
 /* -------------------------------------------------------------------------------- */
 /* 2. Realizar un listado de servicios realizados agrupados por tipos de servicios. */
 /* -------------------------------------------------------------------------------- */
 
-SELECT		Titulo, TipoServicio, s.FechaAlta, FechaFinalizacion, FechaPago, Observaciones, IdServicio, IdUsuario, IdTecnico, IdVendedor, s.IdTipoServicio
+SELECT		TipoServicio, Titulo, s.FechaAlta, FechaFinalizacion, FechaPago, Observaciones, IdServicio, IdUsuario, IdTecnico, IdVendedor, s.IdTipoServicio
 FROM		servicios AS s
 INNER JOIN	tiposServicio AS t ON s.IdTipoServicio = t.IdTipoServicio
 WHERE		FechaBaja IS NULL AND FechaFinalizacion IS NOT NULL
-ORDER BY	TipoServicio, s.FechaAlta DESC, FechaFinalizacion DESC, FechaPago DESC, Observaciones, IdServicio, IdUsuario, IdTecnico, IdVendedor, s.IdTipoServicio
+ORDER BY	TipoServicio, Titulo, s.FechaAlta DESC, FechaFinalizacion DESC, FechaPago DESC, Observaciones, IdServicio, IdUsuario, IdTecnico, IdVendedor, s.IdTipoServicio
 ;
 
 /* ----------------------------------------------------------------------------------------------------------------------------------------------------- */
 /* 3. Mostrar la diferencia entre el total de productos de entradas y el total de productos asignados a servicios para un rango de fechas en particular. */
 /* ----------------------------------------------------------------------------------------------------------------------------------------------------- */
-SET @FechaInicio_3 = '2023-05-01';
-SET @FechaFin_3 = '2023-08-31';
+SET @FechaInicio_3 = '2023-01-01T00:00:00';
+SET @FechaFin_3 = '2024-12-31T23:59:59';
 
 -- Creación de tabla temporal
 DROP TABLE IF EXISTS tmp_productos;
-CREATE TEMPORARY TABLE tmp_productos (
+CREATE TEMPORARY TABLE IF NOT EXISTS tmp_productos (
 	IdProducto 	INT NOT NULL,
     Entradas 	SMALLINT DEFAULT 0,
     Salidas 	SMALLINT DEFAULT 0
@@ -64,13 +65,12 @@ WHERE 		FechaBaja IS NULL AND FechaFinalizacion IS NOT NULL AND FechaFinalizacio
 GROUP BY 	IdProducto;
 
 -- Listado final de cantidad de productos
-SELECT 		CONCAT(p.Producto, ' (', IFNULL(Marca, 'Generico'), ')') AS Producto, SUM(Entradas - Salidas) AS Stock, p.IdProducto
+SELECT 		p.Producto, COALESCE(Marca, 'Genérico') AS Marca, SUM(Entradas - Salidas) AS Stock, p.IdProducto
 FROM 		tmp_productos AS tp
 INNER JOIN	productos AS p ON tp.IdProducto = p.IdProducto
-GROUP BY	IdProducto, Producto
-ORDER BY	Producto, Stock DESC, IdProducto
+GROUP BY	Producto, Marca, IdProducto
+ORDER BY	Producto, Marca, Stock DESC, IdProducto
 ;
-
 -- Eliminación de tabla temporal
 DROP TABLE IF EXISTS tmp_productos;
 
@@ -79,12 +79,12 @@ DROP TABLE IF EXISTS tmp_productos;
 	El formato deberá ser: mes, total de productos en entradas, total de productos asignados a servicios, 
  	total de servicios sin productos asignados, total de servicios. */
 /* ---------------------------------------------------------------------------------------------------- */
-SET @FechaInicio_4 = '2023-05-01';
-SET @FechaFin_4 = '2023-08-31';
+SET @FechaInicio_4 = '2022-01-01T00:00:00';
+SET @FechaFin_4 = '2024-12-31T23:59:59';
 
 -- Creación de tabla temporal
 DROP TABLE IF EXISTS tmp_resumen_meses;
-CREATE TEMPORARY TABLE tmp_resumen_meses (
+CREATE TEMPORARY TABLE IF NOT EXISTS tmp_resumen_meses (
 	Anio					SMALLINT NOT NULL,
 	Mes 					TINYINT NOT NULL,
     ProductosEntradas 		SMALLINT DEFAULT 0,
@@ -105,16 +105,16 @@ INSERT INTO tmp_resumen_meses (Anio, Mes, ProductosServicios)
 SELECT      Year(FechaFinalizacion) AS Anio, MONTH(FechaFinalizacion) AS Mes, SUM(Cantidad)
 FROM        servicios AS s
 INNER JOIN  lineasServicio AS ls ON s.IdServicio = ls.IdServicio
-WHERE 		FechaFinalizacion BETWEEN @FechaInicio_4 AND @FechaFin_4
+WHERE 		FechaBaja IS NULL AND FechaFinalizacion BETWEEN @FechaInicio_4 AND @FechaFin_4
 GROUP BY    Anio, Mes
 HAVING      Mes IS NOT NULL
 ;
 
 INSERT INTO 	tmp_resumen_meses (Anio, Mes, ServiciosSinProductos)
-SELECT      	Year(FechaFinalizacion) AS Anio, MONTH(FechaFinalizacion) AS Mes, COUNT(IdServicio)
+SELECT      	Year(FechaFinalizacion) AS Anio, MONTH(FechaFinalizacion) AS Mes, COUNT(s.IdServicio)
 FROM        	servicios AS s
 LEFT OUTER JOIN lineasServicio AS ls ON s.IdServicio = ls.IdServicio
-WHERE       	NroLinea IS NULL AND FechaFinalizacion BETWEEN @FechaInicio_4 AND @FechaFin_4
+WHERE       	NroLinea IS NULL AND FechaBaja IS NULL AND FechaFinalizacion BETWEEN @FechaInicio_4 AND @FechaFin_4
 GROUP BY    	Anio, Mes
 HAVING      	Mes IS NOT NULL
 ;
@@ -139,14 +139,13 @@ ORDER BY	Anio, Mes ASC
 ;
 
 -- Eliminación de tabla temporal
-DROP TABLE IF EXISTS tmp_productos;
-
+DROP TABLE IF EXISTS tmp_resumen_meses;
 
 /* ----------------------------------------------------------------------------------------------------- */
 /* 5. Hacer un ranking con los técnicos que más servicios realizan (por cantidad) en un rango de fechas. */
 /* ----------------------------------------------------------------------------------------------------- */
-SET @FechaInicio_5 = '2021-04-01';
-SET @FechaFin_5 = '2024-08-31';
+SET @FechaInicio_5 = '2022-01-01T00:00:00';
+SET @FechaFin_5 = '2024-12-31T23:59:59';
 
 SELECT			COUNT(IdServicio) AS Cantidad, Apellidos, Nombres, t.IdUsuario
 FROM			tecnicos AS t
@@ -160,29 +159,29 @@ ORDER BY 		Cantidad DESC, Apellidos, Nombres, t.IdUsuario
 /* -------------------------------------------------------------------------------------------------- */
 /* 6. Hacer un ranking con los tipos de servicios más realizados (por importe) en un rango de fechas. */
 /* -------------------------------------------------------------------------------------------------- */
-SET @FechaInicio_6 = '2021-04-01';
-SET @FechaFin_6 = '2024-08-31';
+SET @FechaInicio_6 = '2021-01-01T00:00:00';
+SET @FechaFin_6 = '2024-12-31T23:59:59';
 
 SELECT			SUM(Cantidad * PrecioUnitario) AS Importe, TipoServicio, ts.IdTipoServicio
 FROM			tiposServicio AS ts
-LEFT OUTER JOIN	servicios AS s ON s.IdTipoServicio = ts.IdTipoServicio
+INNER JOIN		servicios AS s ON s.IdTipoServicio = ts.IdTipoServicio
 INNER JOIN		lineasServicio AS ls ON s.IdServicio = ls.IdServicio AND s.IdUsuario = ls.IdUsuario
 WHERE			(FechaBaja IS NULL AND FechaFinalizacion IS NOT NULL) AND s.FechaAlta BETWEEN @FechaInicio_6 AND @FechaFin_6
-GROUP BY		IdTipoServicio, TipoServicio
+GROUP BY		TipoServicio, IdTipoServicio
 ORDER BY 		Importe DESC, TipoServicio, ts.IdTipoServicio
 ;
 
 /* --------------------------------------------------------------------------------------------------- */
 /* 7. Hacer un ranking con los tipos de servicios más realizados (por cantidad) en un rango de fechas. */
 /* --------------------------------------------------------------------------------------------------- */
-SET @FechaInicio_7 = '2021-04-01';
-SET @FechaFin_7 = '2024-08-31';
+SET @FechaInicio_7 = '2021-01-01T:00:00:00';
+SET @FechaFin_7 = '2024-12-31T23:59:59';
 
 SELECT			COUNT(s.IdServicio) AS Cantidad, TipoServicio, t.IdTipoServicio
 FROM			tiposServicio AS t
 INNER JOIN		servicios AS s ON t.IdTipoServicio = s.IdTipoServicio
 WHERE			FechaFinalizacion IS NOT NULL AND s.FechaAlta BETWEEN @FechaInicio_7 AND @FechaFin_7
-GROUP BY		IdTipoServicio, TipoServicio
+GROUP BY		TipoServicio, IdTipoServicio
 ORDER BY		Cantidad DESC, TipoServicio, t.IdTipoServicio
 ;
 
@@ -192,11 +191,11 @@ ORDER BY		Cantidad DESC, TipoServicio, t.IdTipoServicio
 
 DROP VIEW IF EXISTS v_servicios_agrupados_tipo;
 CREATE VIEW  v_servicios_agrupados_tipo AS
-	SELECT		Titulo, TipoServicio, s.FechaAlta, FechaFinalizacion, FechaPago, Observaciones, IdServicio, IdUsuario, IdTecnico, IdVendedor, s.IdTipoServicio
+	SELECT		TipoServicio, Titulo, s.FechaAlta, FechaFinalizacion, FechaPago, Observaciones, IdServicio, IdUsuario, IdTecnico, IdVendedor, s.IdTipoServicio
 	FROM		servicios AS s
 	INNER JOIN	tiposServicio AS t ON s.IdTipoServicio = t.IdTipoServicio
 	WHERE		FechaBaja IS NULL AND FechaFinalizacion IS NOT NULL
-	ORDER BY	TipoServicio, s.FechaAlta DESC, FechaFinalizacion DESC, FechaPago DESC, Observaciones, IdServicio, IdUsuario, IdTecnico, IdVendedor, s.IdTipoServicio
+	ORDER BY	TipoServicio, Titulo, s.FechaAlta DESC, FechaFinalizacion DESC, FechaPago DESC, Observaciones, IdServicio, IdUsuario, IdTecnico, IdVendedor, s.IdTipoServicio
 ;
 
 SELECT * FROM v_servicios_agrupados_tipo;
@@ -207,155 +206,246 @@ SELECT * FROM v_servicios_agrupados_tipo;
 /* ------------------------------------------------------------------------------------------------------------------------------------------ */
 
 DROP TABLE IF EXISTS productos_copia;        
-CREATE TABLE productos_copia (
+CREATE TABLE IF NOT EXISTS productos_copia (
   IdProducto int unsigned NOT NULL AUTO_INCREMENT,
   Producto varchar(60) NOT NULL,
   Marca varchar(60) DEFAULT NULL,
   Detalle JSON NULL,
   EstadoProducto char(1) NOT NULL DEFAULT 'A',
   PRIMARY KEY (IdProducto)
-) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=1;
 
 INSERT INTO productos_copia (Producto,Marca,Detalle,EstadoProducto)
 VALUES
     ('Switch',null,'[
-    {
-      "IdEntrada": 1,
-      "CostoUnitario": 15000,
-      "Cantidad": 10
-    },
-    {
-      "IdEntrada": 10,
-      "CostoUnitario": 10000,
-      "Cantidad": 5
-    }
-  ]','A'),
+      {
+        "IdEntrada": 1,
+        "CostoUnitario": 15000,
+        "Cantidad": 11
+      },
+      {
+        "IdEntrada": 6,
+        "CostoUnitario": 20000,
+        "Cantidad": 3
+      },
+      {
+        "IdEntrada": 11,
+        "CostoUnitario": 10000,
+        "Cantidad": 5
+      },
+      {
+        "IdEntrada": 13,
+        "CostoUnitario": 10000,
+        "Cantidad": 12
+      }
+	]','A'),
     ('Switch','Cisco','[
-    {
-      "IdEntrada": 5,
-      "CostoUnitario": 50000,
-      "Cantidad": 2
-    }
-  ]','A'),
+      {
+        "IdEntrada": 2,
+        "CostoUnitario": 50000,
+        "Cantidad": 2
+      },
+      {
+        "IdEntrada": 6,
+        "CostoUnitario": 10000,
+        "Cantidad": 2
+      },
+      {
+        "IdEntrada": 14,
+        "CostoUnitario": 10000,
+        "Cantidad": 7
+      }
+    ]','A'),
     ('Router','Cisco','[
-    {
-      "IdEntrada": 1,
-      "CostoUnitario": 25000,
-      "Cantidad": 5
-    },
-    {
-      "IdEntrada": 2,
-      "CostoUnitario": 25000,
-      "Cantidad": 2
-    }
-  ]','B'),
+      {
+        "IdEntrada": 1,
+        "CostoUnitario": 25000,
+        "Cantidad": 5
+      },
+      {
+        "IdEntrada": 2,
+        "CostoUnitario": 25000,
+        "Cantidad": 2
+      },
+      {
+        "IdEntrada": 6,
+        "CostoUnitario": 20000,
+        "Cantidad": 3
+      },
+      {
+        "IdEntrada": 17,
+        "CostoUnitario": 30000,
+        "Cantidad": 20
+      }
+    ]','B'),
     ('Router','Mikrotik','[
-    {
-      "IdEntrada": 5,
-      "CostoUnitario": 30000,
-      "Cantidad": 2
-    }
-  ]','B'),
+      {
+        "IdEntrada": 5,
+        "CostoUnitario": 30000,
+        "Cantidad": 2
+      },
+      {
+        "IdEntrada": 19,
+        "CostoUnitario": 40000,
+        "Cantidad": 4
+      }
+    ]','B'),
     ('Cable','UTP','[
-    {
-      "IdEntrada": 2,
-      "CostoUnitario": 2000,
-      "Cantidad": 20
-    }
-  ]','A'),
+      {
+        "IdEntrada": 2,
+        "CostoUnitario": 2000,
+        "Cantidad": 20
+      },
+      {
+        "IdEntrada": 23,
+        "CostoUnitario": 50000,
+        "Cantidad": 9
+      }
+    ]','A'),
     ('Servidor',null,'[
-    {
-      "IdEntrada": 1,
-      "CostoUnitario": 100000,
-      "Cantidad": 2
-    }
-  ]','A'),
+      {
+        "IdEntrada": 1,
+        "CostoUnitario": 100000,
+        "Cantidad": 13
+      },
+      {
+        "IdEntrada": 24,
+        "CostoUnitario": 60000,
+        "Cantidad": 10
+      }
+    ]','A'),
     ('Switch','Cisco','[
-    {
-      "IdEntrada": 5,
-      "CostoUnitario": 80000,
-      "Cantidad": 1
-    }
-  ]','A'),
+      {
+        "IdEntrada": 1,
+        "CostoUnitario": 15000,
+        "Cantidad": 10
+      },
+      {
+        "IdEntrada": 5,
+        "CostoUnitario": 80000,
+        "Cantidad": 1
+      }
+    ]','A'),
     ('Switch','HP','[
-    {
-      "IdEntrada": 10,
-      "CostoUnitario": 50000,
-      "Cantidad": 2
-    }
-  ]','A'),
+      {
+        "IdEntrada": 1,
+        "CostoUnitario": 25000,
+        "Cantidad": 10
+      },
+      {
+        "IdEntrada": 11,
+        "CostoUnitario": 50000,
+        "Cantidad": 2
+      }
+    ]','A'),
     ('Switch','Dell','[
-    {
-      "IdEntrada": 6,
-      "CostoUnitario": 15000,
-      "Cantidad": 10
-    }
-  ]','B'),
-    ('Router','Cisco',null,'A'),
+      {
+        "IdEntrada": 1,
+        "CostoUnitario": 100000,
+        "Cantidad": 10
+      },
+      {
+        "IdEntrada": 6,
+        "CostoUnitario": 15000,
+        "Cantidad": 10
+      },
+      {
+        "IdEntrada": 9,
+        "CostoUnitario": 30000,
+        "Cantidad": 3
+      },
+      {
+        "IdEntrada": 16,
+        "CostoUnitario": 50000,
+        "Cantidad": 10
+      },
+      {
+        "IdEntrada": 17,
+        "CostoUnitario": 10000,
+        "Cantidad": 15
+      },
+      {
+        "IdEntrada": 18,
+        "CostoUnitario": 20000,
+        "Cantidad": 5
+      },
+      {
+        "IdEntrada": 19,
+        "CostoUnitario": 15000,
+        "Cantidad": 10
+      }
+    ]','B'),
+    ('Router','Cisco','[
+      {
+        "IdEntrada": 8,
+        "CostoUnitario": 20000,
+        "Cantidad": 15
+      }
+    ]','A'),
     ('Router','Juniper','[
-    {
-      "IdEntrada": 6,
-      "CostoUnitario": 35000,
-      "Cantidad": 5
-    }
-  ]','B'),
+      {
+        "IdEntrada": 6,
+        "CostoUnitario": 35000,
+        "Cantidad": 5
+      }
+    ]','B'),
     ('Firewall','Fortinet','[
-    {
-      "IdEntrada": 6,
-      "CostoUnitario": 20000,
-      "Cantidad": 3
-    }
-  ]','A'),
+      {
+        "IdEntrada": 6,
+        "CostoUnitario": 20000,
+        "Cantidad": 3
+      }
+    ]','A'),
     ('Firewall','Palo Alto','[
-    {
-      "IdEntrada": 9,
-      "CostoUnitario": 30000,
-      "Cantidad": 3
-    }
-  ]','B'),
+      {
+        "IdEntrada": 9,
+        "CostoUnitario": 30000,
+        "Cantidad": 3
+      }
+    ]','B'),
     ('Access Point','Aruba',null,'A'),
     ('Access Point','Ubiquiti','[
-    {
-      "IdEntrada": 6,
-      "CostoUnitario": 40000,
-      "Cantidad": 2
-    }
-  ]','A'),
+      {
+        "IdEntrada": 6,
+        "CostoUnitario": 40000,
+        "Cantidad": 2
+      }
+    ]','A'),
     ('Access Point','Ruckus','[
-    {
-      "IdEntrada": 9,
-      "CostoUnitario": 50000,
-      "Cantidad": 1
-    }
-  ]','B'),
+      {
+        "IdEntrada": 9,
+        "CostoUnitario": 50000,
+        "Cantidad": 10
+      }
+    ]','B'),
     ('Cable UTP','Belden','[
-    {
-      "IdEntrada": 9,
-      "CostoUnitario": 10000,
-      "Cantidad": 15
-    }
-  ]','A'),
+      {
+        "IdEntrada": 9,
+        "CostoUnitario": 10000,
+        "Cantidad": 15
+      }
+    ]','A'),
     ('Cable UTP','Panduit','[
-    {
-      "IdEntrada": 9,
-      "CostoUnitario": 20000,
-      "Cantidad": 5
-    }
-  ]','A'),
+      {
+        "IdEntrada": 9,
+        "CostoUnitario": 20000,
+        "Cantidad": 5
+      }
+    ]','A'),
     ('Patch Panel','Leviton','[
-    {
-      "IdEntrada": 9,
-      "CostoUnitario": 15000,
-      "Cantidad": 10
-    }
-  ]','A'),
+      {
+        "IdEntrada": 9,
+        "CostoUnitario": 15000,
+        "Cantidad": 10
+      }
+    ]','A'),
     ('Patch Panel','Belden','[
-    {
-		"IdEntrada": 10,
-		"CostoUnitario": 100000,
-		"Cantidad": 1
-	}
-  ]','B');
+      {
+        "IdEntrada": 11,
+        "CostoUnitario": 100000,
+        "Cantidad": 10
+      }
+    ]','B');
   
 -- Tabla productos copia
 SELECT * FROM productos_copia;
@@ -386,13 +476,13 @@ WHERE		IdProducto = @IdProducto_9
 
 DROP VIEW IF EXISTS v_servicios_impagos;
 CREATE VIEW	v_servicios_impagos AS
-	SELECT		Titulo, FechaFinalizacion, CONCAT(Apellidos, ', ', Nombres) AS Cliente, Telefono, COALESCE(SUM(Cantidad * PrecioUnitario), 0) AS Deuda, s.IdServicio
-	FROM		servicios AS s
-	INNER JOIN	usuarios AS u ON u.IdUsuario = s.IdUsuario
-	INNER JOIN	lineasServicio AS ls ON ls.IdServicio = s.IdServicio AND ls.IdUsuario = s.IdUsuario
-	WHERE		FechaBaja IS NULL AND FechaFinalizacion IS NOT NULL AND FechaPago IS NULL
-	GROUP BY	Titulo, FechaFinalizacion, Cliente, Telefono, s.IdServicio
-    ORDER BY	Titulo, FechaFinalizacion, Cliente, Telefono, Deuda, s.IdServicio
+	SELECT			FechaFinalizacion, Titulo, CONCAT(Apellidos, ', ', Nombres) AS Cliente, Telefono, COALESCE(SUM(Cantidad * PrecioUnitario), 0) AS Deuda, s.IdServicio
+	FROM			servicios AS s
+	INNER JOIN		usuarios AS u ON u.IdUsuario = s.IdUsuario
+	LEFT OUTER JOIN	lineasServicio AS ls ON ls.IdServicio = s.IdServicio AND ls.IdUsuario = s.IdUsuario
+	WHERE			FechaBaja IS NULL AND FechaFinalizacion IS NOT NULL AND FechaPago IS NULL
+	GROUP BY		FechaFinalizacion, Titulo, Cliente, Telefono, s.IdServicio
+    ORDER BY		FechaFinalizacion, Titulo, Cliente, Telefono, Deuda, s.IdServicio
 ;
 
 SELECT * FROM v_servicios_impagos;
