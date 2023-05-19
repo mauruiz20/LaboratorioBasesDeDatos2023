@@ -9,184 +9,202 @@
 -- GitHub Repositorio: LBD2023G03
 -- GitHub Usuario: FaustoJuarez, mauruiz20
 
+/* --------------------------------------------------------------------- */
 /* 1. Dado un cliente, listar todos sus servicios en un rango de fechas. */
+/* --------------------------------------------------------------------- */
+SET @IdUsuario_1 = 1;
+SET @FechaInicio_1 = '2023-05-01';
+SET @FechaFin_1 = '2023-08-31';
 
-SELECT		*
+SELECT		Titulo, FechaAlta, FechaBaja, FechaFinalizacion, FechaPago, Observaciones, IdServicio, IdUsuario, IdTecnico, IdVendedor, IdTipoServicio
 FROM		servicios
-WHERE		IdUsuario = 1 AND
-			FechaAlta BETWEEN '2023-05-01' AND '2023-08-31'
+WHERE		IdUsuario = @IdUsuario_1 AND
+			FechaAlta BETWEEN @FechaInicio_1 AND @FechaFin_1
 ;
 
+/* -------------------------------------------------------------------------------- */
 /* 2. Realizar un listado de servicios realizados agrupados por tipos de servicios. */
+/* -------------------------------------------------------------------------------- */
 
--- No se entiende el enunciado
-
-SELECT		TipoServicio, s.*
-FROM		servicios s
-JOIN		tiposservicio t ON s.IdTipoServicio = t.IdTipoServicio
+SELECT		Titulo, TipoServicio, s.FechaAlta, FechaFinalizacion, FechaPago, Observaciones, IdServicio, IdUsuario, IdTecnico, IdVendedor, s.IdTipoServicio
+FROM		servicios AS s
+INNER JOIN	tiposServicio AS t ON s.IdTipoServicio = t.IdTipoServicio
 WHERE		FechaBaja IS NULL AND FechaFinalizacion IS NOT NULL
-ORDER BY	TipoServicio
+ORDER BY	TipoServicio, s.FechaAlta DESC, FechaFinalizacion DESC, FechaPago DESC, Observaciones, IdServicio, IdUsuario, IdTecnico, IdVendedor, s.IdTipoServicio
 ;
 
+/* ----------------------------------------------------------------------------------------------------------------------------------------------------- */
 /* 3. Mostrar la diferencia entre el total de productos de entradas y el total de productos asignados a servicios para un rango de fechas en particular. */
+/* ----------------------------------------------------------------------------------------------------------------------------------------------------- */
+SET @FechaInicio_3 = '2023-05-01';
+SET @FechaFin_3 = '2023-08-31';
 
-SELECT * FROM lineasEntrada;
-SELECT * FROM lineasServicio;
+-- Creación de tabla temporal
+DROP TABLE IF EXISTS tmp_productos;
+CREATE TEMPORARY TABLE tmp_productos (
+	IdProducto 	INT NOT NULL,
+    Entradas 	SMALLINT DEFAULT 0,
+    Salidas 	SMALLINT DEFAULT 0
+)ENGINE = InnoDB;
 
--- Opcion 1
-SET @TotalEntrada = (SELECT 		SUM(Cantidad) Cantidad
-					 FROM			lineasEntrada);
-                     
-SET @TotalServicio = (SELECT		SUM(Cantidad) Cantidad
-					  FROM			lineasServicio);
-                      
-SELECT @TotalEntrada - @TotalServicio AS Total;
+-- Inserción de cantidad de productos en entradas finalizadas entre fechas
+INSERT INTO tmp_productos (IdProducto, Entradas) 
+SELECT 		IdProducto, SUM(Cantidad) AS Entradas													
+FROM 		lineasEntrada AS le 
+INNER JOIN 	entradas AS e ON le.IdEntrada = e.IdEntrada 
+WHERE 		EstadoEntrada = 'F' AND FechaEntrada BETWEEN @FechaInicio_3 AND @FechaFin_3
+GROUP BY 	IdProducto;
 
--- ¿Que fecha?
--- Entradas -> FechaEntrada
--- Servicios -> FechaFinalizacion
+-- Inserción de cantidad de productos en servicios realizados entre fechas
+INSERT INTO tmp_productos (IdProducto, Salidas) 
+SELECT 		IdProducto, SUM(Cantidad) AS Salidas 
+FROM 		lineasServicio AS ls
+INNER JOIN 	servicios AS s ON ls.IdServicio = s.IdServicio
+WHERE 		FechaBaja IS NULL AND FechaFinalizacion IS NOT NULL AND FechaFinalizacion BETWEEN @FechaInicio_3 AND @FechaFin_3
+GROUP BY 	IdProducto;
 
--- Opcion 2
-SELECT 
-	(SELECT SUM(Cantidad) Cantidad 
-		FROM lineasEntrada l 
-		JOIN entradas e ON l.IdEntrada = e.IdEntrada 
-        WHERE EstadoEntrada = 'F'
-	) - 
-    (SELECT SUM(Cantidad) Cantidad 
-		FROM lineasServicio 
-		WHERE IdProducto IS NOT NULL
-	) AS Total
+-- Listado final de cantidad de productos
+SELECT 		CONCAT(p.Producto, ' (', IFNULL(Marca, 'Generico'), ')') AS Producto, SUM(Entradas - Salidas) AS Stock, p.IdProducto
+FROM 		tmp_productos AS tp
+INNER JOIN	productos AS p ON tp.IdProducto = p.IdProducto
+GROUP BY	IdProducto, Producto
+ORDER BY	Producto, Stock DESC, IdProducto
 ;
 
+-- Eliminación de tabla temporal
+DROP TABLE IF EXISTS tmp_productos;
+
+/* ---------------------------------------------------------------------------------------------------- */
 /* 4. Dado un rango de fechas, mostrar mes a mes el total de entradas y el total de servicios. 
- 		El formato deberá ser: mes, total de productos en entradas, total de productos asignados a servicios, 
- 		total de servicios sin productos asignados, total de servicios. */
-        
--- ¿Como calculo el mes a mes de un producto asignado y servicios?
--- Productos asignados en que fecha?
+	El formato deberá ser: mes, total de productos en entradas, total de productos asignados a servicios, 
+ 	total de servicios sin productos asignados, total de servicios. */
+/* ---------------------------------------------------------------------------------------------------- */
+SET @FechaInicio_4 = '2023-05-01';
+SET @FechaFin_4 = '2023-08-31';
 
-SELECT		MONTH(FechaEntrada) Mes, SUM(Cantidad) 'Total de productos en entradas'
-FROM		entradas
-JOIN		lineasEntrada USING (IdEntrada)
-GROUP BY	Mes
-ORDER BY 	Mes
+-- Creación de tabla temporal
+DROP TABLE IF EXISTS tmp_resumen_meses;
+CREATE TEMPORARY TABLE tmp_resumen_meses (
+	Anio					SMALLINT NOT NULL,
+	Mes 					TINYINT NOT NULL,
+    ProductosEntradas 		SMALLINT DEFAULT 0,
+    ProductosServicios		SMALLINT DEFAULT 0,
+    ServiciosSinProductos	SMALLINT DEFAULT 0,
+    Servicios				SMALLINT DEFAULT 0
+)ENGINE = InnoDB;
+
+INSERT INTO tmp_resumen_meses (Anio, Mes, ProductosEntradas)
+SELECT		Year(FechaEntrada) AS Anio, MONTH(FechaEntrada) AS Mes, SUM(Cantidad)
+FROM		entradas AS e
+INNER JOIN	lineasEntrada AS le ON e.IdEntrada = le.IdEntrada
+WHERE 		FechaEntrada BETWEEN @FechaInicio_4 AND @FechaFin_4
+GROUP BY	Anio, Mes
 ;
--- Fecha de alta o fecha de finalizacion
-SELECT      MONTH(FechaFinalizacion) Mes, SUM(Cantidad) 'Total de productos asignados'
-FROM        servicios
-JOIN        lineasServicio USING (IdServicio)
-GROUP BY    Mes
+
+INSERT INTO tmp_resumen_meses (Anio, Mes, ProductosServicios)
+SELECT      Year(FechaFinalizacion) AS Anio, MONTH(FechaFinalizacion) AS Mes, SUM(Cantidad)
+FROM        servicios AS s
+INNER JOIN  lineasServicio AS ls ON s.IdServicio = ls.IdServicio
+WHERE 		FechaFinalizacion BETWEEN @FechaInicio_4 AND @FechaFin_4
+GROUP BY    Anio, Mes
 HAVING      Mes IS NOT NULL
-ORDER BY    Mes
 ;
 
-SELECT      MONTH(FechaFinalizacion) Mes, COUNT(IdServicio) 'Total de servicios sin productos asignados'
+INSERT INTO 	tmp_resumen_meses (Anio, Mes, ServiciosSinProductos)
+SELECT      	Year(FechaFinalizacion) AS Anio, MONTH(FechaFinalizacion) AS Mes, COUNT(IdServicio)
+FROM        	servicios AS s
+LEFT OUTER JOIN lineasServicio AS ls ON s.IdServicio = ls.IdServicio
+WHERE       	NroLinea IS NULL AND FechaFinalizacion BETWEEN @FechaInicio_4 AND @FechaFin_4
+GROUP BY    	Anio, Mes
+HAVING      	Mes IS NOT NULL
+;
+
+INSERT INTO tmp_resumen_meses (Anio, Mes, Servicios)
+SELECT      Year(FechaAlta) AS Anio, MONTH(FechaAlta) AS Mes, COUNT(IdServicio)
 FROM        servicios
-LEFT JOIN   lineasServicio USING (IdServicio)
-WHERE       NroLinea IS NULL
-GROUP BY    Mes
-HAVING      Mes IS NOT NULL
-ORDER BY    Mes
+WHERE 		FechaAlta BETWEEN @FechaInicio_4 AND @FechaFin_4
+GROUP BY    Anio, Mes
 ;
 
-SELECT      MONTH(FechaAlta) Mes, COUNT(IdServicio) 'Total de servicios'
-FROM        servicios
-GROUP BY    Mes
-ORDER BY    Mes
+-- Listado final
+SELECT 		Anio AS Año,
+			Mes, 
+            SUM(ProductosEntradas) AS 'Total de productos en entradas', 
+            SUM(ProductosServicios) AS 'Total de productos asignados a servicios', 
+            SUM(ServiciosSinProductos) AS 'Total de servicios sin productos asignados', 
+            SUM(Servicios) AS 'Total de servicios'
+FROM 		tmp_resumen_meses AS tr
+GROUP BY	Anio, Mes
+ORDER BY	Anio, Mes ASC
 ;
 
--- consulta grande
-SELECT
-t1.Mes,
-COALESCE(t1.`Total de productos en entradas`,0) 'Total de productos en entradas',
-COALESCE(t2.`Total de productos asignados`,0) 'Total de productos asignados',
-COALESCE(t3.`Total de servicios sin productos asignados`,0) 'Total de servicios sin productos asignados',
-COALESCE(t4.`Total de servicios`,0) 'Total de servicios' 
-FROM
-(SELECT
-MONTH(FechaEntrada) Mes,
-SUM(Cantidad) 'Total de productos en entradas'
-FROM entradas
-JOIN lineasEntrada USING (IdEntrada)
-GROUP BY Mes) t1
+-- Eliminación de tabla temporal
+DROP TABLE IF EXISTS tmp_productos;
 
-LEFT JOIN
-(SELECT
-MONTH(FechaFinalizacion) Mes,
-SUM(Cantidad) 'Total de productos asignados'
-FROM servicios
-JOIN lineasServicio USING (IdServicio)
-GROUP BY Mes
-HAVING Mes IS NOT NULL) t2 ON t1.Mes = t2.Mes
 
-LEFT JOIN
-(SELECT
-MONTH(FechaFinalizacion) Mes,
-COUNT(IdServicio) 'Total de servicios sin productos asignados'
-FROM servicios
-LEFT JOIN lineasServicio USING (IdServicio)
-WHERE NroLinea IS NULL
-GROUP BY Mes
-HAVING Mes IS NOT NULL) t3 ON t1.Mes = t3.Mes
-
-LEFT JOIN
-(SELECT
-MONTH(FechaAlta) Mes,
-COUNT(IdServicio) 'Total de servicios'
-FROM servicios
-GROUP BY Mes) t4 ON t1.Mes = t4.Mes
-
-ORDER BY t1.Mes;
-
+/* ----------------------------------------------------------------------------------------------------- */
 /* 5. Hacer un ranking con los técnicos que más servicios realizan (por cantidad) en un rango de fechas. */
+/* ----------------------------------------------------------------------------------------------------- */
+SET @FechaInicio_5 = '2021-04-01';
+SET @FechaFin_5 = '2024-08-31';
 
--- ¿Que fecha?
-SELECT * FROM tecnicos t JOIN servicios s ON t.IdUsuario = s.IdTecnico;
-
-SELECT			t.IdUsuario, Apellidos, Nombres, COUNT(IdServicio) 'Cantidad de servicios'
-FROM			tecnicos t
-JOIN			usuarios u ON t.IdUsuario = u.IdUsuario
-LEFT JOIN		servicios s ON t.IdUsuario = s.IdTecnico
-WHERE			(FechaFinalizacion IS NOT NULL OR FechaBaja IS NOT NULL) AND FechaAlta BETWEEN '2021-04-01' AND '2024-08-31'
+SELECT			COUNT(IdServicio) AS Cantidad, Apellidos, Nombres, t.IdUsuario
+FROM			tecnicos AS t
+JOIN			usuarios AS u ON t.IdUsuario = u.IdUsuario
+LEFT OUTER JOIN	servicios AS s ON t.IdUsuario = s.IdTecnico
+WHERE			(FechaBaja IS NULL AND FechaFinalizacion IS NOT NULL) AND FechaAlta BETWEEN @FechaInicio_5 AND @FechaFin_5
 GROUP BY		IdUsuario, Apellidos, Nombres
-ORDER BY 		4 DESC
+ORDER BY 		Cantidad DESC, Apellidos, Nombres, t.IdUsuario
 ;
 
+/* -------------------------------------------------------------------------------------------------- */
 /* 6. Hacer un ranking con los tipos de servicios más realizados (por importe) en un rango de fechas. */
+/* -------------------------------------------------------------------------------------------------- */
+SET @FechaInicio_6 = '2021-04-01';
+SET @FechaFin_6 = '2024-08-31';
 
-SELECT			ts.IdTipoServicio, TipoServicio, SUM(Cantidad * PrecioUnitario) 'Importe'
-FROM			tiposServicio ts
-LEFT JOIN		servicios s ON s.IdTipoServicio = ts.IdTipoServicio
-JOIN			lineasServicio ls ON s.IdServicio = ls.IdServicio
-WHERE			FechaFinalizacion IS NOT NULL AND s.FechaAlta BETWEEN '2021-04-01' AND '2024-08-31'
+SELECT			SUM(Cantidad * PrecioUnitario) AS Importe, TipoServicio, ts.IdTipoServicio
+FROM			tiposServicio AS ts
+LEFT OUTER JOIN	servicios AS s ON s.IdTipoServicio = ts.IdTipoServicio
+INNER JOIN		lineasServicio AS ls ON s.IdServicio = ls.IdServicio AND s.IdUsuario = ls.IdUsuario
+WHERE			(FechaBaja IS NULL AND FechaFinalizacion IS NOT NULL) AND s.FechaAlta BETWEEN @FechaInicio_6 AND @FechaFin_6
 GROUP BY		IdTipoServicio, TipoServicio
-ORDER BY 		3 DESC
+ORDER BY 		Importe DESC, TipoServicio, ts.IdTipoServicio
 ;
 
+/* --------------------------------------------------------------------------------------------------- */
 /* 7. Hacer un ranking con los tipos de servicios más realizados (por cantidad) en un rango de fechas. */
+/* --------------------------------------------------------------------------------------------------- */
+SET @FechaInicio_7 = '2021-04-01';
+SET @FechaFin_7 = '2024-08-31';
 
-SELECT			t.IdTipoServicio, TipoServicio, COUNT(s.IdServicio) 'Tipos de servicios más realizados'
-FROM			tiposServicio t
-JOIN			servicios s ON t.IdTipoServicio = s.IdTipoServicio
-WHERE			FechaFinalizacion IS NOT NULL AND s.FechaAlta BETWEEN '2021-04-01' AND '2024-08-31'
+SELECT			COUNT(s.IdServicio) AS Cantidad, TipoServicio, t.IdTipoServicio
+FROM			tiposServicio AS t
+INNER JOIN		servicios AS s ON t.IdTipoServicio = s.IdTipoServicio
+WHERE			FechaFinalizacion IS NOT NULL AND s.FechaAlta BETWEEN @FechaInicio_7 AND @FechaFin_7
 GROUP BY		IdTipoServicio, TipoServicio
-ORDER BY		3 DESC;
+ORDER BY		Cantidad DESC, TipoServicio, t.IdTipoServicio
+;
 
-/*- 8. Crear una vista con la funcionalidad del apartado 2. */
+/* ------------------------------------------------------- */
+/* 8. Crear una vista con la funcionalidad del apartado 2. */
+/* ------------------------------------------------------- */
 
-CREATE VIEW v_servicios_agrupados_tipo AS
-	SELECT		TipoServicio, s.*
-	FROM		servicios s
-	JOIN		tiposservicio t ON s.IdTipoServicio = t.IdTipoServicio
+DROP VIEW IF EXISTS v_servicios_agrupados_tipo;
+CREATE VIEW  v_servicios_agrupados_tipo AS
+	SELECT		Titulo, TipoServicio, s.FechaAlta, FechaFinalizacion, FechaPago, Observaciones, IdServicio, IdUsuario, IdTecnico, IdVendedor, s.IdTipoServicio
+	FROM		servicios AS s
+	INNER JOIN	tiposServicio AS t ON s.IdTipoServicio = t.IdTipoServicio
 	WHERE		FechaBaja IS NULL AND FechaFinalizacion IS NOT NULL
-	ORDER BY	TipoServicio
+	ORDER BY	TipoServicio, s.FechaAlta DESC, FechaFinalizacion DESC, FechaPago DESC, Observaciones, IdServicio, IdUsuario, IdTecnico, IdVendedor, s.IdTipoServicio
 ;
 
 SELECT * FROM v_servicios_agrupados_tipo;
 
+/* ------------------------------------------------------------------------------------------------------------------------------------------ */
 /* 9. Crear una copia de la tabla productos, que además tenga una columna del tipo JSON para guardar el detalle de las entradas (lineasEntrada). 
- 		Llenar esta tabla con los mismos datos del TP1 y resolver la consulta: Dado un producto listar todas las lineasEntradas del producto. */
+	Llenar esta tabla con los mismos datos del TP1 y resolver la consulta: Dado un producto listar todas las lineasEntradas del producto. */
+/* ------------------------------------------------------------------------------------------------------------------------------------------ */
 
 DROP TABLE IF EXISTS productos_copia;        
 CREATE TABLE productos_copia (
@@ -204,10 +222,10 @@ VALUES
     {
       "IdEntrada": 1,
       "CostoUnitario": 15000,
-      "Cantidad": 5
+      "Cantidad": 10
     },
     {
-      "IdEntrada": 12,
+      "IdEntrada": 10,
       "CostoUnitario": 10000,
       "Cantidad": 5
     }
@@ -223,33 +241,33 @@ VALUES
     {
       "IdEntrada": 1,
       "CostoUnitario": 25000,
-      "Cantidad": 1
+      "Cantidad": 5
     },
     {
-      "IdEntrada": 4,
+      "IdEntrada": 2,
       "CostoUnitario": 25000,
       "Cantidad": 2
     }
   ]','B'),
     ('Router','Mikrotik','[
     {
-      "IdEntrada": 4,
+      "IdEntrada": 5,
       "CostoUnitario": 30000,
       "Cantidad": 2
     }
   ]','B'),
     ('Cable','UTP','[
     {
-      "IdEntrada": 3,
+      "IdEntrada": 2,
       "CostoUnitario": 2000,
       "Cantidad": 20
     }
   ]','A'),
     ('Servidor',null,'[
     {
-      "IdEntrada": 2,
+      "IdEntrada": 1,
       "CostoUnitario": 100000,
-      "Cantidad": 1
+      "Cantidad": 2
     }
   ]','A'),
     ('Switch','Cisco','[
@@ -261,7 +279,7 @@ VALUES
   ]','A'),
     ('Switch','HP','[
     {
-      "IdEntrada": 13,
+      "IdEntrada": 10,
       "CostoUnitario": 50000,
       "Cantidad": 2
     }
@@ -271,11 +289,6 @@ VALUES
       "IdEntrada": 6,
       "CostoUnitario": 15000,
       "Cantidad": 10
-    },
-    {
-      "IdEntrada": 9,
-      "CostoUnitario": 30000,
-      "Cantidad": 3
     }
   ]','B'),
     ('Router','Cisco',null,'A'),
@@ -288,7 +301,7 @@ VALUES
   ]','B'),
     ('Firewall','Fortinet','[
     {
-      "IdEntrada": 7,
+      "IdEntrada": 6,
       "CostoUnitario": 20000,
       "Cantidad": 3
     }
@@ -303,7 +316,7 @@ VALUES
     ('Access Point','Aruba',null,'A'),
     ('Access Point','Ubiquiti','[
     {
-      "IdEntrada": 8,
+      "IdEntrada": 6,
       "CostoUnitario": 40000,
       "Cantidad": 2
     }
@@ -317,61 +330,69 @@ VALUES
   ]','B'),
     ('Cable UTP','Belden','[
     {
-      "IdEntrada": 10,
+      "IdEntrada": 9,
       "CostoUnitario": 10000,
       "Cantidad": 15
     }
   ]','A'),
     ('Cable UTP','Panduit','[
     {
-      "IdEntrada": 10,
+      "IdEntrada": 9,
       "CostoUnitario": 20000,
       "Cantidad": 5
     }
   ]','A'),
     ('Patch Panel','Leviton','[
     {
-      "IdEntrada": 11,
+      "IdEntrada": 9,
       "CostoUnitario": 15000,
       "Cantidad": 10
     }
   ]','A'),
     ('Patch Panel','Belden','[
     {
-		"IdEntrada": 14,
+		"IdEntrada": 10,
 		"CostoUnitario": 100000,
 		"Cantidad": 1
 	}
   ]','B');
   
+-- Tabla productos copia
 SELECT * FROM productos_copia;
-SELECT * FROM lineasEntrada WHERE IdProducto = 1;
-  
--- NroLinea ORDINALITY ?
+
+SET @IdProducto_9 = 1;
+
+-- Listado de la tabla original lineas entrada
+SELECT * FROM lineasEntrada WHERE IdProducto = @IdProducto_9;
+
+-- Listado de la tabla productos_copia
 SELECT		NroLinea, IdEntrada, CostoUnitario, Cantidad
 FROM		productos_copia
-JOIN		JSON_TABLE(Detalle, '$[*]' COLUMNS(
+INNER JOIN	JSON_TABLE(Detalle, '$[*]' COLUMNS(
 					NroLinea	  	FOR ORDINALITY,
 					IdEntrada 		int 			PATH '$.IdEntrada',
 					CostoUnitario 	decimal(12,2) 	PATH '$.CostoUnitario',
 					Cantidad 		smallint		PATH '$.Cantidad'
 					)
 			) AS lineasEntrada
-WHERE			IdProducto = 1
+WHERE		IdProducto = @IdProducto_9
 ;
 
+/* --------------------------------------------------------------------------------------------------------------- */
 /* 10: Realizar una vista que considere importante para su modelo. También dejar escrito el enunciado de la misma. */
+/* --------------------------------------------------------------------------------------------------------------- */
 
--- Enunciado: Mostrar una lista de los servicios que no están pagados indicando quién es el cliente, su teléfono y cúal es la deuda.
+/* Enunciado: Mostrar un listado de los servicios realizados que no están pagados indicando quién es el cliente, su teléfono y cúal es la deuda. */
 
 DROP VIEW IF EXISTS v_servicios_impagos;
 CREATE VIEW	v_servicios_impagos AS
-	SELECT		IdServicio, CONCAT(Apellidos, ', ', Nombres) Cliente, Telefono, COALESCE(SUM(Cantidad * PrecioUnitario), 0) Deuda
-	FROM		servicios s
-	JOIN		usuarios u USING (IdUsuario)
-	JOIN		lineasServicio ls USING (IdServicio)
-	WHERE		FechaBaja IS NULL AND FechaPago IS NULL
-	GROUP BY	IdServicio, s.IdUsuario
+	SELECT		Titulo, FechaFinalizacion, CONCAT(Apellidos, ', ', Nombres) AS Cliente, Telefono, COALESCE(SUM(Cantidad * PrecioUnitario), 0) AS Deuda, s.IdServicio
+	FROM		servicios AS s
+	INNER JOIN	usuarios AS u ON u.IdUsuario = s.IdUsuario
+	INNER JOIN	lineasServicio AS ls ON ls.IdServicio = s.IdServicio AND ls.IdUsuario = s.IdUsuario
+	WHERE		FechaBaja IS NULL AND FechaFinalizacion IS NOT NULL AND FechaPago IS NULL
+	GROUP BY	Titulo, FechaFinalizacion, Cliente, Telefono, s.IdServicio
+    ORDER BY	Titulo, FechaFinalizacion, Cliente, Telefono, Deuda, s.IdServicio
 ;
 
 SELECT * FROM v_servicios_impagos;
