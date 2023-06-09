@@ -229,10 +229,10 @@ DELIMITER ;
 
 -- Llamadas
 SET @pMensaje = '';
-CALL lbd2023g03.sp_crear_vendedor('Perez', 'Juan', '20343653719', '34365371', 'perezjuan@gmail.com', '3811234567', 'San Juan 720', 'perezj', '123456', @pMensaje);		-- Vendedor creado con éxito
-CALL lbd2023g03.sp_crear_vendedor('Perez', 'Juan', '20343653719', '34365371', 'perezjuan@gmail.com', '3811234567', 'San Juan 720', 'juanperez', '123456', @pMensaje);	-- Vendedor con CUIL repetido
-CALL lbd2023g03.sp_crear_vendedor('Perez', 'Juan', '20343653719', '34365371', null, '3811234567', 'San Juan 720', 'juanperez', '123456', @pMensaje);					-- Campos obligatorios
-CALL lbd2023g03.sp_crear_vendedor('Perez', 'Juan', '20343653719', '34365371', 'perezjuan@gmail.com', '3811234567', 'San Juan 720', 'juanperez', '123', @pMensaje);		-- Contraseña menor a 6 caracteres
+CALL LBD2023G03.sp_crear_vendedor('Perez', 'Juan', '20343653719', '34365371', 'perezjuan@gmail.com', '3811234567', 'San Juan 720', 'perezj', '123456', @pMensaje);		-- Vendedor creado con éxito
+CALL LBD2023G03.sp_crear_vendedor('Perez', 'Juan', '20343653719', '34365371', 'perezjuan@gmail.com', '3811234567', 'San Juan 720', 'juanperez', '123456', @pMensaje);	-- Vendedor con CUIL repetido
+CALL LBD2023G03.sp_crear_vendedor('Perez', 'Juan', '20343653719', '34365371', null, '3811234567', 'San Juan 720', 'juanperez', '123456', @pMensaje);					-- Campos obligatorios
+CALL LBD2023G03.sp_crear_vendedor('Perez', 'Juan', '20343653719', '34365371', 'perezjuan@gmail.com', '3811234567', 'San Juan 720', 'juanperez', '123', @pMensaje);		-- Contraseña menor a 6 caracteres
 SELECT @pMensaje AS Mensaje;
 
 SELECT * FROM aud_usuarios;
@@ -303,10 +303,10 @@ DELIMITER ;
 
 -- Llamadas
 SET @pMensaje = '';
-CALL lbd2023g03.sp_modificar_vendedor(73, 'Rodriguez', 'Juan', '20343653719', '34365371', 'perezjuan@gmail.com', '3811234567', 'San Juan 720', 'juanperez', '123456', @pMensaje);	-- Vendedor modificado con éxito
-CALL lbd2023g03.sp_modificar_vendedor(73, 'Perez', 'Juan', '20343653719', '34365371', 'perezjuan@gmail.com', '3811234567', 'San Juan 720', 'JeffersonThor', '123456', @pMensaje);	-- Cuenta repetida
-CALL lbd2023g03.sp_modificar_vendedor(73, 'Perez', 'Juan', '20343653719', '34365371', 'perezjuan@gmail.com', '3811234567', 'San Juan 720', '', '123456', @pMensaje);				-- Campos obligatorios
-CALL lbd2023g03.sp_modificar_vendedor(5000, 'Perez', 'Juan', '13143653715', '14365371', 'perezjuan@gmail.com', '3811234567', 'San Juan 720', '123456', '123456', @pMensaje);		-- Se intentó modificar a un vendedor no existente
+CALL LBD2023G03.sp_modificar_vendedor(72, 'Rodriguez', 'Juan', '20343653719', '34365371', 'perezjuan@gmail.com', '3811234567', 'San Juan 720', 'juanperez', '123456', @pMensaje);	-- Vendedor modificado con éxito
+CALL LBD2023G03.sp_modificar_vendedor(72, 'Perez', 'Juan', '20343653719', '34365371', 'perezjuan@gmail.com', '3811234567', 'San Juan 720', 'JeffersonThor', '123456', @pMensaje);	-- Cuenta repetida
+CALL LBD2023G03.sp_modificar_vendedor(72, 'Perez', 'Juan', '20343653719', '34365371', 'perezjuan@gmail.com', '3811234567', 'San Juan 720', '', '123456', @pMensaje);				-- Campos obligatorios
+CALL LBD2023G03.sp_modificar_vendedor(5000, 'Perez', 'Juan', '13143653715', '14365371', 'perezjuan@gmail.com', '3811234567', 'San Juan 720', '123456', '123456', @pMensaje);		-- Se intentó modificar a un vendedor no existente
 SELECT @pMensaje AS Mensaje;
 
 SELECT * FROM aud_usuarios;
@@ -347,10 +347,10 @@ DELIMITER ;
 
 -- Llamadas
 SET @pMensaje = '';
-CALL lbd2023g03.sp_borrar_vendedor(73, @pMensaje); 				-- Vendedor borrado con éxito
-CALL lbd2023g03.sp_borrar_vendedor(27, @pMensaje);				-- Existen servicios asociados
-CALL lbd2023g03.sp_borrar_vendedor(1, @pMensaje);				-- Se intentó borrar un vendedor (cuyo ID es un cliente)
-CALL lbd2023g03.sp_borrar_vendedor(5000, @pMensaje);			-- Se intentó borrar un vendedor que no existe
+CALL LBD2023G03.sp_borrar_vendedor(72, @pMensaje); 				-- Vendedor borrado con éxito
+CALL LBD2023G03.sp_borrar_vendedor(27, @pMensaje);				-- Existen servicios asociados
+CALL LBD2023G03.sp_borrar_vendedor(1, @pMensaje);				-- Se intentó borrar un vendedor (cuyo ID es un cliente)
+CALL LBD2023G03.sp_borrar_vendedor(5000, @pMensaje);			-- Se intentó borrar un vendedor que no existe
 SELECT @pMensaje AS Mensaje;
 
 SELECT * FROM aud_usuarios;
@@ -384,10 +384,10 @@ DELIMITER ;
 
 -- Llamadas
 SET @pMensaje = '';
-CALL lbd2023g03.sp_obtener_vendedor('Nolan', null, null, @pMensaje);	-- Se obtiene un vendedor
-CALL lbd2023g03.sp_obtener_vendedor('Dip', null, null, @pMensaje);		-- No existe el vendedor
-CALL lbd2023g03.sp_obtener_vendedor(null, 'Nicolas', null, @pMensaje);	-- No existe el vendedor
-CALL lbd2023g03.sp_obtener_vendedor(null, null, null, @pMensaje);		-- Lista todos los vendedores
+CALL LBD2023G03.sp_obtener_vendedor('Nolan', null, null, @pMensaje);	-- Se obtiene un vendedor
+CALL LBD2023G03.sp_obtener_vendedor('Dip', null, null, @pMensaje);		-- No existe el vendedor
+CALL LBD2023G03.sp_obtener_vendedor(null, 'Nicolas', null, @pMensaje);	-- No existe el vendedor
+CALL LBD2023G03.sp_obtener_vendedor(null, null, null, @pMensaje);		-- Lista todos los vendedores
 SELECT @pMensaje AS Mensaje;
 
 -- -----------------------------------------------------
@@ -409,7 +409,7 @@ END//
 DELIMITER ;
 
 -- Llamadas
-CALL  lbd2023g03.sp_listar_vendedores();
+CALL  LBD2023G03.sp_listar_vendedores();
 
 -- -----------------------------------------------------
 -- 9 - Dado un rango de fechas y un usuario vendedor, mostrar todos los servicios y sus
@@ -474,10 +474,10 @@ DELIMITER ;
 
 -- Llamadas
 SET @pMensaje = '';
-CALL  lbd2023g03.sp_listar_servicios_vendedor(27, "2023-01-01", "2023-12-31", @pMensaje);		-- Se obtiene los servicios de un vendedor
-CALL  lbd2023g03.sp_listar_servicios_vendedor(40, "2023-01-01", "2023-12-31", @pMensaje);		-- No se encontraron servicios del vendedor
-CALL  lbd2023g03.sp_listar_servicios_vendedor(27, null, null, @pMensaje);						-- Sin rango de fechas
-CALL  lbd2023g03.sp_listar_servicios_vendedor(5000, "2023-01-01", "2023-12-31", @pMensaje);		-- Vendedor no existente
+CALL  LBD2023G03.sp_listar_servicios_vendedor(27, "2023-01-01", "2023-12-31", @pMensaje);		-- Se obtiene los servicios de un vendedor
+CALL  LBD2023G03.sp_listar_servicios_vendedor(40, "2023-01-01", "2023-12-31", @pMensaje);		-- No se encontraron servicios del vendedor
+CALL  LBD2023G03.sp_listar_servicios_vendedor(27, null, null, @pMensaje);						-- Sin rango de fechas
+CALL  LBD2023G03.sp_listar_servicios_vendedor(5000, "2023-01-01", "2023-12-31", @pMensaje);		-- Vendedor no existente
 SELECT @pMensaje AS Mensaje;
 
 -- -----------------------------------------------------
@@ -503,4 +503,4 @@ END//
 DELIMITER ;
 
 -- Llamadas
-CALL lbd2023g03.sp_listar_servicios_impagos();
+CALL LBD2023G03.sp_listar_servicios_impagos();
