@@ -132,7 +132,7 @@ DELIMITER ;
 -- 3 - Borrado
 -- -----------------------------------------------------
 
-DROP TRIGGER IF EXISTS trig_usuarios_borrado 
+DROP TRIGGER IF EXISTS trig_usuarios_borrado;
 
 DELIMITER //
 CREATE TRIGGER trig_usuarios_borrado 
